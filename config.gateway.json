@@ -1,0 +1,12 @@
+{
+      "interfaces": {
+                 "openvpn": {
+                        "vtun64": {
+                                "openvpn-option": [
+                                        "--float",                                        
+                                        "--verb 3"
+                                ]
+                        }                                   
+                }
+        }
+}
