@@ -3,10 +3,10 @@
                  "openvpn": {
                         "vtun64": {
                                 "openvpn-option": [
-                                        "--float",                                        
+                                        "--float",
                                         "--verb 3"
                                 ]
-                        }                                   
+                        }
                 }
         }
 }
