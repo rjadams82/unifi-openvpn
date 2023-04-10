@@ -1,6 +1,8 @@
 # unifi-openvpn
 ## Setup unifi gateway openvpn site to site tunnel
 
+![USG OpenVPN](/2023-04-10%20Unifi%20USG%20OpenVPN.png)
+
 Here is a basic guide for establishing an openvpn tunnel between a Unifi Security Gateway and an OpenVPN device. In this scenario I am connecting a Unifi USG-3P with modem/gateways running openWRT or rOOter. I have made this connection on multiple devices including 
 
 - GL.iNet GL-X750
@@ -24,15 +26,42 @@ Some prerequisistes for this to work include
 
 > It is also worth mentioning that you are linking two seperate gateways each with their own LAN ip ranges. Since creating a site-to-site tunnel implies you want traffic to move between the two networks you need to ensure your ip ranges are all unique; you cant have 192.168.1.0/24 assigned to the LAN at both locations.
 
+## IP Address Planning
+You need to plan your IP addressing for this to work properly. Assuming your Primary site USG LAN is setup with 192.168.1.0/24 then you could feasibly allocate the next available /24 block (192.168.2.0/24) to your remote site. 
+
+> If you anticipate expansion at your primary site you could reserve 192.168.0.0/21 for your primary site and the next available addressing would be 192.168.8.0/24 for your remote site. The critical requirement is that your primary and remote site do not have overlapping IP ranges.
+
+Since openVPN p2p connections require layer 3 TUN interfaces, you will also need one unique private IP address per site per tunnel. In my example I am using 172.16.0.1 & 172.16.0.2 just because I dont have any other 172 addresses on my network so it will be easy to identify which addresses are used for tunnel adapters.
+
+![USG OpenVPN](/2023-04-10%20Unifi%20USG%20OpenVPN%20L3.png)
+
+So to recap here is my IP addressing plan
+
+```
+192.168.1.1/24 - Primary Site USG LAN
+192.168.2.1/24 - Remote Site device LAN
+
+172.16.0.1 - Primary Site TUN adapter
+172.16.0.2 - Remote Site TUN adapater
+```
+
 ## Setup Unifi Gateway
-Add a site-to-site vpn connection in Unifi Network application.
+Log into USG cli to generate auth key. Name the key so you know which site-to-site connection it is for. (openvpn-secret-site1 etc)
+
+`generate vpn openvpn-key /config/auth/openvpn-secret-site1`
+
+You will need this key for your openvpn remote site so copy the contents to a text file for now:
+
+`sudo cat /config/auth/openvpn-secret-site1`
+
+Using the Unifi application, add a site-to-site vpn connection.
 
 **Settings > VPN > Site-to-Site VPN > Create**
 
 - `VPN Protocol` - openVPN
 - `Local Tunnel IP Address` - 172.16.0.1 *This is the L3 address of the TUN interface
 - `Local port` - 1194 *this is the port for openVPN to establish a connection. If you add additional site-to-site connections you will need to use a different port number! 1195, 1196, ... etc
-- `Shared Remote Subnets` - 192.168.2.0/24 *This is the 
+- `Shared Remote Subnets` - 192.168.2.0/24 *This is the LAN of the Remote site; the openVPN process will add the route internally when the tunnel establishes
 
 ## Setup openVPN far end (point-to point or p2p mode)
 Setup your openVPN connection using an openvpn (.ovpn) configuration file. 
