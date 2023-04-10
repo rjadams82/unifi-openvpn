@@ -45,12 +45,17 @@ So to recap here is my IP addressing plan
 172.16.0.2 - Remote Site TUN adapater
 ```
 
+## DDNS Setup
+You can use the public IP address of your Primary site USG (wan interface) or a hostname/domain for your Remote openVPN to connect to. If you do not have a static IP on your USG internet connection your VPN will obviously fail if your public IP address changes. The easiest way to get around this is by using a DDNS service. 
+
+This is a topic that is covered in depth elsewhere so I won't go into detail. For more help with DDNS checkout UI article [https://help.ui.com/hc/en-us/articles/9203184738583-UniFi-Gateway-Dynamic-DNS]
+
 ## Setup Unifi Gateway
 Log into USG cli to generate auth key. Name the key so you know which site-to-site connection it is for. (openvpn-secret-site1 etc)
 
 `generate vpn openvpn-key /config/auth/openvpn-secret-site1`
 
-You will need this key for your openvpn remote site so copy the contents to a text file for now:
+You will need this key for the USB site-to-site connectino details and your openvpn remote site so copy the contents to a text file for now:
 
 `sudo cat /config/auth/openvpn-secret-site1`
 
@@ -59,12 +64,37 @@ Using the Unifi application, add a site-to-site vpn connection.
 **Settings > VPN > Site-to-Site VPN > Create**
 
 - `VPN Protocol` - openVPN
-- `Local Tunnel IP Address` - 172.16.0.1 *This is the L3 address of the TUN interface
-- `Local port` - 1194 *this is the port for openVPN to establish a connection. If you add additional site-to-site connections you will need to use a different port number! 1195, 1196, ... etc
-- `Shared Remote Subnets` - 192.168.2.0/24 *This is the LAN of the Remote site; the openVPN process will add the route internally when the tunnel establishes
+- `Pre-shared Key` - only the hash from the secret you created, in a one line string
+- `Local Tunnel IP Address` - 172.16.0.1 *(This is L3 address of TUN interface)*
+- `Shared Remote Subnets` - 192.168.2.0/24 *(This is LAN of Remote site; openVPN process will add route internally when the tunnel establishes)*
+- `Remote IP Address` - site2.mynetwork *(you can make this anything since we will be overriding remote site IP)*
+- `Local port` - 1194 *(this is port for openVPN to establish connection. Additional site-to-site connections will need a different port number! 1195, 1196, ... etc)*
 
 ## Setup openVPN far end (point-to point or p2p mode)
-Setup your openVPN connection using an openvpn (.ovpn) configuration file. 
+By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed.
+
+```
+dev tun
+remote r0.ra-net.net
+port 1195
+proto udp
+resolv-retry infinite
+mode p2p
+nobind
+persist-tun
+verb 3
+keepalive 10 120
+ifconfig 172.16.0.4 172.16.0.3
+route 10.0.0.0 255.0.0.0
+<secret>
+#
+# 2048 bit OpenVPN static key
+#
+-----BEGIN OpenVPN Static key V1-----
+(this is where your 'secret' will go)
+-----END OpenVPN Static key V1-----
+</secret>
+```
 
 ### Troubleshooting commands
 
