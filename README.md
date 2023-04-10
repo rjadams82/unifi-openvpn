@@ -75,8 +75,8 @@ By far the easiest way to setup your openVPN remote connection is using an openv
 
 ```
 dev tun
-remote r0.ra-net.net
-port 1195
+remote site1.mynetwork.net
+port 1194
 proto udp
 resolv-retry infinite
 mode p2p
@@ -84,8 +84,8 @@ nobind
 persist-tun
 verb 3
 keepalive 10 120
-ifconfig 172.16.0.4 172.16.0.3
-route 10.0.0.0 255.0.0.0
+ifconfig 172.16.0.2 172.16.0.1
+route 192.168.1.0 255.255.255.0
 <secret>
 #
 # 2048 bit OpenVPN static key
