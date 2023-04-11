@@ -3,7 +3,7 @@
 
 ![USG OpenVPN](/2023-04-10%20Unifi%20USG%20OpenVPN.png)
 
-Here is a basic guide for establishing an openvpn tunnel between a Unifi Security Gateway and an OpenVPN device. In this scenario I am connecting a Unifi USG-3P with modem/gateways running openWRT or rOOter. I have made this connection on multiple devices including 
+Here is a basic guide for establishing an openvpn tunnel between a Unifi Security Gateway and an OpenVPN device. In this scenario I am connecting a Unifi USG-3P with cellular modem/gateways running openWRT or rOOter. I have made this connection on multiple devices including 
 
 - GL.iNet GL-X750
 - GL.iNet GL-MT300N-V2 
@@ -55,53 +55,160 @@ Log into USG cli to generate auth key. Name the key so you know which site-to-si
 
 `generate vpn openvpn-key /config/auth/openvpn-secret-site1`
 
-You will need this key for the USB site-to-site connectino details and your openvpn remote site so copy the contents to a text file for now:
+You will need this secret data for the USG site-to-site connection details and your openvpn remote site so `cat` the file to see the contents:
 
 `sudo cat /config/auth/openvpn-secret-site1`
 
-Using the Unifi application, add a site-to-site vpn connection.
+Highlight/select the entire contents of the output and copy to a text file on your local computer.
+
+You will also need to copy just the secret hash string (all the data between -----BEGIN OpenVPN Static key V1----- & -----END OpenVPN Static key V1-----) for inputting the "Pre-shared key" in your Unifi site-to-site connection. Copy the string to a seperate text file and remove all line breaks in this string so it is a single line.
+
+Now, using the Unifi application, add a site-to-site vpn connection:
 
 **Settings > VPN > Site-to-Site VPN > Create**
 
 - `VPN Protocol` - openVPN
-- `Pre-shared Key` - only the hash from the secret you created, in a one line string
-- `Local Tunnel IP Address` - 172.16.0.1 *(This is L3 address of TUN interface)*
-- `Shared Remote Subnets` - 192.168.2.0/24 *(This is LAN of Remote site; openVPN process will add route internally when the tunnel establishes)*
-- `Remote IP Address` - site2.mynetwork *(you can make this anything since we will be overriding remote site IP)*
+- `Pre-shared Key` - only the hash string from the secret you created, in one line
+- `Local Tunnel IP Address` - 172.16.0.1 *(This is L3 address of primary site TUN interface)*
 - `Local port` - 1194 *(this is port for openVPN to establish connection. Additional site-to-site connections will need a different port number! 1195, 1196, ... etc)*
+- `Shared Remote Subnets` - 192.168.2.0/24 *(This is LAN of Remote site; openVPN process will add route internally when the tunnel establishes)*
+- `Remote IP Address` - site2.mynetwork *(you can make this the DDNS of your remote site OR literally anything since we will be overriding remote site IP)*
+- `Remote Tunnel IP Address` - 172.16.0.2 *(This is L3 address of remote site TUN interface)*
+- `Port` - 1194 *(this is remote site port for openVPN to establish connection. It should match your local port & your remote site .ovpn configuration file)*
 
-## Setup openVPN far end (point-to point or p2p mode)
-By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed.
+Save the connection and allow a few minutes for Unifi to push the config to your USG.
+
+The last piece of info you need is to tell the USG to allow this openVPN connection to "float" (which means the remote site may not always have the same IP address). This is important if your remote site uses a dynamic public IP or if you are using a cellular gateway behind carrier grade NAT (CGNAT). 
+
+Log back into your USG cli, enter configuration mode `configure` and run the command `show interfaces openvpn`. You should see the configuration of the site you just entered, as a vtun## interface:
 
 ```
+admin@usg-01# show interfaces openvpn
+ openvpn vtun64 {
+     description vpn-site-1
+     ...
+     local-address 172.16.0.1 {
+     }
+     local-port 1194
+     mode site-to-site
+     remote-address 172.16.0.2
+     remote-host site2.mynetwork
+     remote-port 1194
+     shared-secret-key-file /config/auth/secret_58232fc8ad8_35e231d6cd948
+ }
+ ```
+
+Now, edit the interface `edit interfaces openvpn vtun64` and issue command `set openvpn-option --float`. Then issue `show` command to see the results. You should now see the float option enabled.
+
+```
+admin@usg-01# show interfaces openvpn
+ openvpn vtun64 {
+     description vpn-site-1
+     ...
+     local-address 172.16.0.1 {
+     }
+     local-port 1194
+     mode site-to-site
+     openvpn-option --float
+     remote-address 172.16.0.2
+     remote-host site2.mynetwork
+     remote-port 1194
+     shared-secret-key-file /config/auth/secret_58232fc8ad8_35e231d6cd948
+ }
+ ```
+At this point you could `commit` the configuration and test the tunnel. However because the USG is managed, you will lose the configuraiton on the next change from Unifi application. To persist this manual command you will need to utilize the config.gateway.json file on your Unifi controller.
+
+## Unifi controller advanced configuration
+
+To persist manual CLI commands you can make use of the config.gateway.json file on your unifi controller. Changes specified in this file are merged with the Unifi application configuration at provisioning time (after changes are made in Unifi) before being pushed to your USG.
+
+I have provided a sample json file in the repository. The file must adhere to JSON standards and is a JSON representation of your USG config. You can use the sample file and adjust for your interface number, in my case "vtun64". I have also added an option for setting the logging level. You do not need the entire config in this file, only the manual commands that you would like to be added(merged) with your Unifi configuration.
+
+```
+{
+      "interfaces": {
+                 "openvpn": {
+                        "vtun64": {
+                                "openvpn-option": [
+                                        "--float",                                        
+                                        "--verb 3"
+                                ]
+                        }
+                }
+        }
+}
+```
+
+Depending on what Unifi application platform you are using you will need to gain file access to the directory where this file is stored, create or edit the file, then save it. Since Unifi can be run on many different systems you will need to check the documentation to figure out where to edit this file. I run a Unifi docker instance and I found mine in the unifi directory /config/data/sites/default which is mounted at /usr/lib/unifi
+
+[https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json] 
+
+## Setup openVPN far end (point-to point or p2p mode)
+By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed. One is included in the repository. Change the relevant fields to match your connection.
+
+```
+mode p2p
 dev tun
+persist-tun
+# the primary site IP or hostname
 remote site1.mynetwork.net
+# port to listen and connect on - local and remote
 port 1194
+# can use UDP or TCP but UDP is recommended
 proto udp
 resolv-retry infinite
-mode p2p
 nobind
-persist-tun
+# verbosity of logging. the higher the number the more info for debugging
 verb 3
 keepalive 10 120
+# the TUN adapter IP information, local remote
 ifconfig 172.16.0.2 172.16.0.1
+# specify the route to your primary site network, this will be added to the routing table on your device
 route 192.168.1.0 255.255.255.0
-<secret>
+# this is where your 'secret' will go. mak sure you copy everything from the secret file you generated
+<secret> 
 #
 # 2048 bit OpenVPN static key
 #
 -----BEGIN OpenVPN Static key V1-----
-(this is where your 'secret' will go)
+this should be filled with your hash
 -----END OpenVPN Static key V1-----
 </secret>
 ```
 
+Save this .ovpn file on your computer, then gain access to the remote site device and upload the .ovpn file into the openVPN setup.
+
+## Testing
+
+Once all steps are complete your devices should attempt to connect. On the USG you can check the logs to see if connections are being made
+`run show log | match openvpn`
+`run show log | match vtun`
+
+You should see some output like below, showing the setup of the tunnel.
+
+```
+Apr 11 12:54:43 usg-01 openvpn[17383]: SIGUSR1[soft,ping-restart] received, process restarting
+Apr 11 12:54:43 usg-01 openvpn[17383]: Restart pause, 2 second(s)
+Apr 11 12:54:45 usg-01 openvpn[17383]: Static Encrypt: Cipher 'BF-CBC' initialized with 128 bit key
+Apr 11 12:54:45 usg-01 openvpn[17383]: Static Encrypt: Using 160 bit message hash 'SHA1' for HMAC authentication
+Apr 11 12:54:45 usg-01 openvpn[17383]: Socket Buffers: R=[294912->131072] S=[294912->131072]
+Apr 11 12:54:46 usg-01 openvpn[17383]: TUN/TAP device vtun64 opened
+Apr 11 12:54:46 usg-01 openvpn[17383]: TUN/TAP TX queue length set to 100
+Apr 11 12:54:46 usg-01 openvpn[17383]: /sbin/ip addr add dev vtun64 local 172.16.0.1 peer 172.16.0.2
+Apr 11 12:54:46 usg-01 openvpn[17383]: UDPv4 link local (bound): [undef]
+Apr 11 12:54:46 usg-01 openvpn[17383]: UDPv4 link remote: [AF_INET]12.58.109.87:1194
+```
+
 ### Troubleshooting commands
 
-show ip route
+Check to see if the routes are added correctly in each system
+`show ip route`
 
-show interfaces openvpn detail 
+Check to see the status of the openVPN interface on the USG
+`show interfaces openvpn detail `
 
-show openvpn status site-to-site
+Check to see summary status of all openVPN connections on the USG
+`show openvpn status site-to-site`
 
-reset openvpn interface vtun65
+Restart openVPN interface on the USG
+`reset openvpn interface vtun64`
