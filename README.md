@@ -116,13 +116,16 @@ admin@usg-01# show interfaces openvpn
      shared-secret-key-file /config/auth/secret_58232fc8ad8_35e231d6cd948
  }
  ```
-At this point you could `commit` the configuration and test the tunnel. However because the USG is managed, you will lose the configuraiton on the next change from Unifi application. To persist this manual command you will need to utilize the config.gateway.json file on your Unifi controller.
+At this point you could `commit` the configuration and test the tunnel. However because the USG is managed by Unifi, you will lose the updated configuraiton on the next change from the Unifi application. To persist this manual cli change you will need to utilize the config.gateway.json file on your Unifi controller.
 
 ## Unifi controller advanced configuration
 
-To persist manual CLI commands you can make use of the config.gateway.json file on your unifi controller. Changes specified in this file are merged with the Unifi application configuration at provisioning time (after changes are made in Unifi) before being pushed to your USG.
+To persist manual CLI commands you can make use of a config.gateway.json file on your unifi controller. Changes specified in this file are merged with the Unifi application configuration at provisioning time (after changes are made in Unifi application) before being pushed to your USG.
 
-I have provided a sample json file in the repository. The file must adhere to JSON standards and is a JSON representation of your USG config. You can use the sample file and adjust for your interface number, in my case "vtun64". I have also added an option for setting the logging level. You do not need the entire config in this file, only the manual commands that you would like to be added(merged) with your Unifi configuration.
+For more information on this advanced option you can read the Unifi help documents:
+[https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json] 
+
+I have provided a sample json file in this repository. The file must adhere to JSON standards and should contain a JSON representation of your USG custom config. You can use the sample file and adjust for your interface number, in my case "vtun64". I have also added an option for setting the logging level. The entire USG config is not contained in this file, only the commands that you would like added(merged) with your Unifi configuration.
 
 ```
 {
@@ -139,7 +142,7 @@ I have provided a sample json file in the repository. The file must adhere to JS
 }
 ```
 
-Depending on what Unifi application platform you are using you will need to gain file access to the directory where this file is stored, create or edit the file, then save it. Since Unifi can be run on many different systems you will need to check the documentation to figure out where to edit this file. I run a Unifi docker instance and I found mine in the unifi directory /config/data/sites/default which is mounted at /usr/lib/unifi
+You will need to gain file access to the directory where this file is stored, create or edit the file, then save it. Since Unifi can be run on many different systems you will need to check the documentation to figure out where to edit this file. I run a Unifi docker instance and I found mine in the unifi directory /config/data/sites/default which is mounted at /usr/lib/unifi
 
 [https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json] 
 
