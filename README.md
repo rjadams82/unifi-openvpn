@@ -146,7 +146,7 @@ You will need to gain file access to the directory where this file is stored, cr
 
 [https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json] 
 
-## Setup openVPN far end (point-to point or p2p mode)
+## Setup openVPN far end (point-to-point or p2p mode)
 By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed. One is included in the repository. Change the relevant fields to match your connection.
 
 ```
@@ -185,6 +185,7 @@ Save this .ovpn file on your computer, then gain access to the remote site devic
 
 Once all steps are complete your devices should attempt to connect. On the USG you can check the logs to see if connections are being made
 `run show log | match openvpn`
+
 `run show log | match vtun`
 
 You should see some output like below, showing the setup of the tunnel.
