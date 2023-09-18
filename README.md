@@ -147,7 +147,7 @@ You will need to gain file access to the directory where this file is stored, cr
 [https://help.ui.com/hc/en-us/articles/215458888-UniFi-USG-Advanced-Configuration-Using-config-gateway-json] 
 
 ## Setup openVPN far end (point-to-point or p2p mode)
-By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed. One is included in the repository. Change the relevant fields to match your connection.
+By far the easiest way to setup your openVPN remote connection is using an openvpn (.ovpn) configuration file. A simple plaintext file with .ovpn extension that contains your openVPN commands is all that is needed. One is included in this repository as an example. You will need to use the entire contents of the key you created ealier to place in this file (as seen below). Change the other relevant fields to match your connection.
 
 ```
 mode p2p
@@ -183,7 +183,7 @@ Save this .ovpn file on your computer, then gain access to the remote site devic
 
 ## Testing
 
-Once all steps are complete your devices should attempt to connect. On the USG you can check the logs to see if connections are being made
+Once all steps are complete your devices should be ready to connect. You may need to "Start" or "Connect" the new ovpn config on the remote device. The USG will always be attempting to connect automatically. On the USG you can check the logs to see if connections are being made
 `run show log | match openvpn`
 
 `run show log | match vtun`
@@ -205,6 +205,7 @@ Apr 11 12:54:46 usg-01 openvpn[17383]: UDPv4 link remote: [AF_INET]12.58.109.87:
 
 ### Troubleshooting commands
 
+Upon successful connection the OpenVPN process will add your routes to the routing table. 
 Check to see if the routes are added correctly in each system
 `show ip route`
 
